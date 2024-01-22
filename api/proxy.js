@@ -29,3 +29,43 @@ module.exports = (req, res) => {
         }
     })(req, res)
 }
+
+
+const {
+    createProxyMiddleware
+} = require('http-proxy-middleware');
+
+module.exports = (req, res) => {
+    let target = '';
+    let headers = {};
+
+    // 代理目标地址
+    if (req.url.startsWith('/mjapi')) {
+        target = process.env.MJ_SERVER ?? 'https://api.openai.com';
+        headers = {
+            'Mj-Api-Secret': process.env.MJ_API_SECRET
+        };
+    } else if (req.url.startsWith('/openapi')) {
+        target = process.env.OPENAI_API_BASE_URL ?? 'https://api.openai.com';
+        headers = {
+            'Authorization': 'Bearer ' + process.env.OPENAI_API_KEY
+        };
+    } else if (req.url.startsWith('/geminiapi')) {
+        target = 'https://generativelanguage.googleapis.com';
+        headers = {
+            'Authorization': 'Bearer ' + process.env.GEMINI_API_KEY
+        };
+    }
+
+    // 创建代理对象并转发请求
+    createProxyMiddleware({
+        target,
+        changeOrigin: true,
+        headers,
+        pathRewrite: {
+            '^/mjapi/': '/',
+            '^/openapi/': '/',
+            '^/geminiapi/': '/v1beta/models/gemini-pro:generateContent'
+        }
+    })(req, res);
+};
